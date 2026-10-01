@@ -2,6 +2,8 @@ import { ReactNode } from "react";
 import { Navbar } from "./Navbar";
 import { Sidebar } from "./Sidebar";
 import { GradientBackground } from "./GradientBackground";
+import { DemoRoleSwitcher } from "./DemoRoleSwitcher";
+import { MobileBottomNav } from "./MobileBottomNav";
 
 export function DashboardLayout({ children }: { children: ReactNode }) {
   return (
@@ -15,11 +17,17 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         {/* Main Content */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-30">
           <Navbar />
-          <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+          <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 pb-24 md:pb-8">
             <div className="max-w-7xl mx-auto h-full">{children}</div>
           </main>
         </div>
       </div>
+
+      {/* Floating Demo Role Switcher */}
+      <DemoRoleSwitcher />
+
+      {/* Mobile Bottom App Navigation */}
+      <MobileBottomNav />
     </GradientBackground>
   );
 }

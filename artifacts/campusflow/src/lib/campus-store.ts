@@ -1,3 +1,5 @@
+import { broadcastSync } from "./broadcast-sync";
+
 function uid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -11,6 +13,7 @@ function ls<T>(key: string, fallback: T): T {
 }
 function ls_set(k: string, v: unknown) {
   localStorage.setItem(k, JSON.stringify(v));
+  broadcastSync(k, v);
 }
 
 export type UserRole = "student" | "faculty" | "maintenance" | "admin";

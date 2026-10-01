@@ -81,6 +81,8 @@ export interface AppNotification {
   link?: string;
 }
 
+import { broadcastSync } from "./broadcast-sync";
+
 function uid(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -94,6 +96,7 @@ function ls<T>(key: string, fallback: T): T {
 }
 function ls_set(key: string, value: unknown) {
   localStorage.setItem(key, JSON.stringify(value));
+  broadcastSync(key, value);
 }
 
 const KEYS = {

@@ -1,3 +1,4 @@
+import { useState, useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { issueStore } from "@/lib/student-store";
@@ -7,6 +8,7 @@ import {
   noticeStore,
   surveyStore,
 } from "@/lib/campus-store";
+import { useStoreSync } from "@/lib/broadcast-sync";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
@@ -31,6 +33,12 @@ const statusColor: Record<string, string> = {
 
 export default function FacultyDashboard() {
   const { user } = useAuth();
+  const [, setVersion] = useState(0);
+  const refresh = useCallback(() => setVersion((v) => v + 1), []);
+  useStoreSync(
+    ["cf_issues", "cf_bookings", "cf_events", "cf_notices", "cf_surveys"],
+    refresh,
+  );
 
   const allIssues = issueStore.getAll();
   const openIssues = allIssues.filter((i) => i.status !== "Resolved");

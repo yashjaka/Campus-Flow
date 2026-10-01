@@ -31,13 +31,17 @@ import {
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { motion } from "framer-motion";
+import { useStoreSync } from "@/lib/broadcast-sync";
 import {
   AlertCircle,
+  ArrowRight,
   Camera,
   CheckCircle2,
   ChevronRight,
   Clock,
   Filter,
+  LayoutGrid,
+  ListFilter,
   Loader2,
   Search,
   User,
@@ -59,10 +63,11 @@ const statusColor: Record<IssueStatus, string> = {
   Resolved: "bg-green-500/20 text-green-400 border-green-500/30",
 };
 const priorityColor: Record<IssuePriority, string> = {
-  Low: "bg-gray-500/20 text-gray-400",
-  Medium: "bg-yellow-500/20 text-yellow-400",
-  High: "bg-orange-500/20 text-orange-400",
-  Critical: "bg-red-500/20 text-red-400",
+  Low: "bg-slate-500/20 text-slate-400 border-slate-500/30",
+  Medium: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+  High: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+  Critical:
+    "bg-red-500/20 text-red-400 border-red-500/50 shadow-[0_0_12px_rgba(239,68,68,0.35)] animate-pulse",
 };
 
 function ImageUpload({
@@ -128,6 +133,7 @@ export default function Complaints() {
   const [statusFilter, setStatusFilter] = useState<IssueStatus | "All">("All");
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
 
   const [assignedTo, setAssignedTo] = useState("");
   const [newStatus, setNewStatus] = useState<IssueStatus | "">("");
@@ -144,9 +150,29 @@ export default function Complaints() {
     setAllIssues(issues);
   }, [isMaintenance, user]);
 
+  useStoreSync("cf_issues", refresh);
+
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  const handleQuickAdvance = (issue: Issue, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user) return;
+    const currIdx = STATUS_ORDER.indexOf(issue.status);
+    if (currIdx === -1 || currIdx >= STATUS_ORDER.length - 1) return;
+    const nextStatus = STATUS_ORDER[currIdx + 1];
+    issueStore.update(issue.id, { status: nextStatus });
+    notificationStore.add({
+      userId: issue.studentId,
+      type: nextStatus === "Resolved" ? "issue_resolved" : "status_changed",
+      title:
+        nextStatus === "Resolved" ? "Issue Resolved" : "Issue Status Updated",
+      message: `"${issue.title}" status changed to ${nextStatus}. Updated by ${user.name}.`,
+      link: "/student/issues",
+    });
+    refresh();
+  };
 
   const filtered = allIssues.filter((i) => {
     const matchSearch =
@@ -244,7 +270,7 @@ export default function Complaints() {
           </div>
         </div>
 
-        {/* Search + Filter */}
+        {/* Search + Filter + View Mode */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -255,25 +281,49 @@ export default function Complaints() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <Select
-            value={statusFilter}
-            onValueChange={(v) => setStatusFilter(v as IssueStatus | "All")}
-          >
-            <SelectTrigger className="w-44">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(["All", ...STATUS_ORDER] as const).map((s) => (
-                <SelectItem key={s} value={s}>
-                  {s}{" "}
-                  {statCounts[s as keyof typeof statCounts] !== undefined
-                    ? `(${statCounts[s as keyof typeof statCounts]})`
-                    : ""}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => setStatusFilter(v as IssueStatus | "All")}
+            >
+              <SelectTrigger className="w-40 sm:w-44">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(["All", ...STATUS_ORDER] as const).map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}{" "}
+                    {statCounts[s as keyof typeof statCounts] !== undefined
+                      ? `(${statCounts[s as keyof typeof statCounts]})`
+                      : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* View Mode Toggle */}
+            <div className="flex items-center gap-0.5 border rounded-lg p-1 bg-muted/20 border-border/50">
+              <Button
+                variant={viewMode === "list" ? "secondary" : "ghost"}
+                size="sm"
+                className="h-8 px-2.5 text-xs gap-1"
+                onClick={() => setViewMode("list")}
+              >
+                <ListFilter className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">List</span>
+              </Button>
+              <Button
+                variant={viewMode === "kanban" ? "secondary" : "ghost"}
+                size="sm"
+                className="h-8 px-2.5 text-xs gap-1"
+                onClick={() => setViewMode("kanban")}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Kanban</span>
+              </Button>
+            </div>
+          </div>
         </div>
 
         {/* Stats row */}
@@ -292,8 +342,94 @@ export default function Complaints() {
           ))}
         </div>
 
-        {/* List */}
-        {filtered.length === 0 ? (
+        {/* Content Views */}
+        {viewMode === "kanban" ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3.5 items-start overflow-x-auto pb-4">
+            {STATUS_ORDER.map((status) => {
+              const itemsInCol = filtered.filter((i) => i.status === status);
+              return (
+                <div
+                  key={status}
+                  className="flex flex-col gap-2.5 p-3 rounded-2xl bg-muted/15 border border-border/40 min-h-[420px]"
+                >
+                  {/* Column Header */}
+                  <div className="flex items-center justify-between pb-2 border-b border-border/40">
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={`w-2 h-2 rounded-full ${statusColor[status].split(" ")[0]}`}
+                      />
+                      <span className="text-xs font-semibold">{status}</span>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] font-mono px-1.5 py-0"
+                    >
+                      {itemsInCol.length}
+                    </Badge>
+                  </div>
+
+                  {/* Cards */}
+                  <div className="space-y-2.5 flex-1">
+                    {itemsInCol.length === 0 ? (
+                      <div className="border border-dashed border-border/40 rounded-xl p-4 text-center text-xs text-muted-foreground/60 my-6">
+                        No tickets
+                      </div>
+                    ) : (
+                      itemsInCol.map((issue) => (
+                        <Card
+                          key={issue.id}
+                          onClick={() => openDetail(issue)}
+                          className="glass-card cursor-pointer hover:border-primary/40 hover:-translate-y-0.5 transition-all text-left shadow-sm hover:shadow-md"
+                        >
+                          <CardContent className="p-3 space-y-2">
+                            <div className="flex items-center justify-between gap-1">
+                              <Badge
+                                className={`text-[10px] py-0 px-1.5 font-medium border ${priorityColor[issue.priority]}`}
+                              >
+                                {issue.priority}
+                              </Badge>
+                              <span className="text-[10px] text-muted-foreground truncate max-w-[100px]">
+                                {issue.category}
+                              </span>
+                            </div>
+
+                            <h4 className="text-xs font-semibold text-foreground line-clamp-2 leading-snug">
+                              {issue.title}
+                            </h4>
+
+                            <div className="text-[11px] text-muted-foreground space-y-0.5 pt-1.5 border-t border-border/30">
+                              <p className="truncate">📍 {issue.location}</p>
+                              <p className="truncate">👤 {issue.studentName}</p>
+                              {issue.assignedTo && (
+                                <p className="truncate text-primary font-medium">
+                                  🔧 {issue.assignedTo.name}
+                                </p>
+                              )}
+                            </div>
+
+                            {status !== "Resolved" && (
+                              <div className="pt-1 flex justify-end">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={(e) => handleQuickAdvance(issue, e)}
+                                  className="h-6 text-[10px] px-2 gap-1 text-primary hover:text-primary hover:bg-primary/10"
+                                >
+                                  Advance
+                                  <ArrowRight className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : filtered.length === 0 ? (
           <Card className="glass-card text-center py-12">
             <CardContent>
               <Wrench className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
@@ -330,7 +466,7 @@ export default function Complaints() {
                             {issue.status}
                           </Badge>
                           <Badge
-                            className={`text-xs ${priorityColor[issue.priority]}`}
+                            className={`text-xs border ${priorityColor[issue.priority]}`}
                           >
                             {issue.priority}
                           </Badge>

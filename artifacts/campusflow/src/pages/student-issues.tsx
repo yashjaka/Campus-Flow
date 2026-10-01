@@ -37,6 +37,8 @@ import {
   Wrench,
 } from "lucide-react";
 
+import { useStoreSync } from "@/lib/broadcast-sync";
+
 type View = "list" | "new" | "detail";
 
 const STATUS_ORDER: IssueStatus[] = [
@@ -56,10 +58,11 @@ const statusColor: Record<IssueStatus, string> = {
 };
 
 const priorityColor: Record<IssuePriority, string> = {
-  Low: "bg-gray-500/20 text-gray-400",
-  Medium: "bg-yellow-500/20 text-yellow-400",
-  High: "bg-orange-500/20 text-orange-400",
-  Critical: "bg-red-500/20 text-red-400",
+  Low: "bg-slate-500/20 text-slate-400 border-slate-500/30",
+  Medium: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+  High: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+  Critical:
+    "bg-red-500/20 text-red-400 border-red-500/50 shadow-[0_0_12px_rgba(239,68,68,0.35)] animate-pulse",
 };
 
 function StarRating({
@@ -213,6 +216,8 @@ export default function StudentIssues() {
   const refresh = useCallback(() => {
     if (user) setIssues(issueStore.getByStudent(user.id));
   }, [user]);
+
+  useStoreSync("cf_issues", refresh);
 
   const [form, setForm] = useState({
     title: "",

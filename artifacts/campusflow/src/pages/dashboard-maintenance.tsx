@@ -1,6 +1,8 @@
+import { useState, useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { issueStore, type Issue } from "@/lib/student-store";
+import { useStoreSync } from "@/lib/broadcast-sync";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,6 +32,9 @@ const priorityColor: Record<string, string> = {
 
 export default function MaintenanceDashboard() {
   const { user } = useAuth();
+  const [, setVersion] = useState(0);
+  const refresh = useCallback(() => setVersion((v) => v + 1), []);
+  useStoreSync("cf_issues", refresh);
 
   const allIssues = issueStore.getAll();
   const myTasks: Issue[] = allIssues.filter(

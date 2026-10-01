@@ -12,6 +12,7 @@ import {
   type NotificationType,
 } from "@/lib/student-store";
 import { useAuth } from "@/contexts/AuthContext";
+import { useStoreSync } from "@/lib/broadcast-sync";
 
 interface NotificationContextValue {
   notifications: AppNotification[];
@@ -42,6 +43,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }
     setNotifications(notificationStore.getByUser(user.id));
   }, [user]);
+
+  useStoreSync("cf_notifications", refresh);
 
   useEffect(() => {
     refresh();

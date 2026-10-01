@@ -1,7 +1,9 @@
+import { useState, useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { issueStore, sosStore } from "@/lib/student-store";
+import { useStoreSync } from "@/lib/broadcast-sync";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +33,9 @@ const statusColor: Record<string, string> = {
 export default function StudentDashboard() {
   const { user } = useAuth();
   const { unreadCount } = useNotifications();
+  const [, setVersion] = useState(0);
+  const refresh = useCallback(() => setVersion((v) => v + 1), []);
+  useStoreSync(["cf_issues", "cf_sos", "cf_notifications"], refresh);
 
   const myIssues = user ? issueStore.getByStudent(user.id) : [];
   const openIssues = myIssues.filter((i) => i.status !== "Resolved");
